@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Students - Global Collaboration Hub</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand"><i class="fas fa-globe"></i><span>Global Collaboration Hub</span></div>
+        <button class="btn btn-outline" onclick="go('dashboard.html')">Back</button>
+    </nav>
+    <main class="main-content">
+        <div class="workspace-content">
+            <h2>Browse Students</h2>
+            <div style="margin: 8px 0; display:flex; gap:8px; align-items:center;">
+                <input id="filterText" placeholder="Search by name/domain/skills" style="flex:1;">
+                <button class="btn btn-outline" id="refreshBtn">Refresh</button>
+            </div>
+            <div id="bulkActions" style="display:none; margin:8px 0; padding:8px; background:#f5f5f5; border-radius:4px; gap:8px; align-items:center;"></div>
+            <div id="studentsList"></div>
+            <div class="modal" id="profileModal">
+                <div class="modal-content" style="max-width:720px;">
+                    <div class="modal-header"><h2>Student Profile</h2><button class="close-btn" id="closeProfile">&times;</button></div>
+                    <div id="profileBody"></div>
+                    <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:12px;">
+                        <button class="btn btn-outline" id="inviteBtn">Invite to Workspace</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    <script src="common.js"></script>
+    <script>
+    const token = requireAuth('login.html');
+    const me = getCurrentUser();
+    if (me.role !== 'external' && me.role !== 'admin') { go('dashboard.html'); }
+    let lastStudents = [];
+    async function load() {
+        const res = await fetch(`${API_BASE_URL}/students`, { headers:{ 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) { notify('Not authorized','error'); return; }
+        lastStudents = await res.json();
+        render(lastStudents);
+    }
+    function render(students) {
+        const list = document.getElementById('studentsList'); list.innerHTML = '';
+        students.forEach(s => {
+            const div = document.createElement('div'); div.className='task-item';
+            const isSelected = selectedStudents.has(s.id);
+            div.innerHTML = `
+                <div class='task-header'>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <input type="checkbox" ${isSelected ? 'checked' : ''} onchange="toggleStudentSelection(${s.id})">
+                        <div class='task-title'>${s.first_name} ${s.last_name}</div>
+                    </div>
+                    <div>${s.domain||''}</div>
+                </div>
+                <div class='task-meta'>Skills: ${s.skills||'-'} • Exp: ${s.experience_years??'-'} years</div>
+                <div class='task-actions'>
+                    <button class='btn-outline' onclick='showProfile(${s.id})'>View Profile</button>
+                    <button class='btn-primary' onclick='sendReq(${s.id})'>Invite</button>
+                </div>
+            `;
+            list.appendChild(div);
+        });
+    }
+    let selectedStudents = new Set();
+    let availableWorkspaces = [];
+    
+    async function loadWorkspaces() {
+        const res = await fetch(`${API_BASE_URL}/workspaces`, { headers:{ 'Authorization': `Bearer ${token}` } });
+        if (res.ok) {
+            availableWorkspaces = await res.json();
+        }
+    }
+    
+    async function sendReq(studentId) {
+        if (availableWorkspaces.length === 0) {
+            notify('No workspaces available', 'error');
+            return;
+        }
+        const choice = await selectWorkspaceModal();
+        if (!choice) return;
+        const res = await fetch(`${API_BASE_URL}/workspaces/${choice}/invite-students`, { 
+            method:'POST', 
+            headers:{ 'Content-Type':'application/json', 'Authorization': `Bearer ${token}` }, 
+            body: JSON.stringify({ student_ids: [studentId] }) 
+        });
+        const d = await res.json(); 
+        if (res.ok) notify('Student invited to workspace','success'); 
+        else notify(d.error||'Failed','error');
+    }
+    
+    function toggleStudentSelection(studentId) {
+        if (selectedStudents.has(studentId)) {
+            selectedStudents.delete(studentId);
+        } else {
+            selectedStudents.add(studentId);
+        }
+        updateSelectionUI();
+    }
+    
+    function updateSelectionUI() {
+        const selectedCount = selectedStudents.size;
+        const bulkActions = document.getElementById('bulkActions');
+        if (selectedCount > 0) {
+            bulkActions.style.display = 'flex';
+            bulkActions.innerHTML = `
+                <span>${selectedCount} student(s) selected</span>
+                <button class="btn btn-primary" onclick="inviteSelectedStudents()">Invite to Workspace</button>
+                <button class="btn btn-outline" onclick="clearSelection()">Clear Selection</button>
+            `;
+        } else {
+            bulkActions.style.display = 'none';
+        }
+    }
+    
+    function clearSelection() {
+        selectedStudents.clear();
+        updateSelectionUI();
+        render(lastStudents);
+    }
+    
+    async function inviteSelectedStudents() {
+        if (selectedStudents.size === 0) return;
+        const choice = await selectWorkspaceModal();
+        if (!choice) return;
+        const res = await fetch(`${API_BASE_URL}/workspaces/${choice}/invite-students`, { 
+            method:'POST', 
+            headers:{ 'Content-Type':'application/json', 'Authorization': `Bearer ${token}` }, 
+            body: JSON.stringify({ student_ids: Array.from(selectedStudents) }) 
+        });
+        const d = await res.json(); 
+        if (res.ok) {
+            notify(`Invited ${d.invited_students.length} students to workspace`,'success');
+            clearSelection();
+        } else {
+            notify(d.error||'Failed','error');
+        }
+    }
+
+    async function selectWorkspaceModal() {
+        return new Promise((resolve) => {
+            const modal = document.createElement('div');
+            modal.className = 'modal show';
+            modal.style.display = 'flex';
+            const options = availableWorkspaces.map(w => `<option value="${w.id}">${w.name} (ID: ${w.id})</option>`).join('');
+            modal.innerHTML = `<div class='modal-content' style='max-width:480px;'>
+                <div class='modal-header'><h2>Select Workspace</h2><button class='close-btn' id='closeWS'>&times;</button></div>
+                <div class='form-group'><label>Workspace</label><select id='wsSelect'>${options}</select></div>
+                <div style='display:flex; gap:8px; justify-content:flex-end;'>
+                    <button class='btn btn-outline' id='cancelWS'>Cancel</button>
+                    <button class='btn btn-primary' id='chooseWS'>Invite</button>
+                </div>
+            </div>`;
+            document.body.appendChild(modal);
+            const cleanup = () => { modal.classList.remove('show'); modal.style.display='none'; modal.remove(); };
+            document.getElementById('closeWS').onclick = () => { cleanup(); resolve(null); };
+            document.getElementById('cancelWS').onclick = () => { cleanup(); resolve(null); };
+            document.getElementById('chooseWS').onclick = () => { const val = document.getElementById('wsSelect').value; cleanup(); resolve(val); };
+        });
+    }
+    async function showProfile(id) {
+        const res = await fetch(`${API_BASE_URL}/students/${id}`, { headers:{ 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) { notify('Failed to load profile','error'); return; }
+        const u = await res.json();
+        const body = document.getElementById('profileBody');
+        body.innerHTML = `<div class='form-group'><strong>${u.first_name} ${u.last_name}</strong> • ${u.email}</div>
+            <div class='form-group'><label>Domain</label><div>${u.domain||'-'}</div></div>
+            <div class='form-group'><label>Skills</label><div>${u.skills||'-'}</div></div>
+            <div class='form-group'><label>Experience</label><div>${u.experience_years??'-'} years</div></div>
+            <div class='form-group'><label>Portfolio</label><div><a href='${u.portfolio_link||'#'}' target='_blank'>${u.portfolio_link||'-'}</a></div></div>
+            <div class='form-group'><label>Resume</label><div><a href='${u.resume_link||'#'}' target='_blank'>${u.resume_link||'-'}</a></div></div>
+            <div class='form-group'><label>Bio</label><div>${u.bio||'-'}</div></div>`;
+        const modal = document.getElementById('profileModal');
+        modal.style.display='flex'; modal.classList.add('show');
+        document.getElementById('inviteBtn').onclick = () => { modal.classList.remove('show'); modal.style.display='none'; sendReq(id); };
+    }
+    document.getElementById('closeProfile').addEventListener('click', () => { const m = document.getElementById('profileModal'); m.classList.remove('show'); m.style.display='none'; });
+    document.getElementById('refreshBtn').addEventListener('click', load);
+    document.getElementById('filterText').addEventListener('input', (e) => {
+        const q = e.target.value.toLowerCase();
+        const filtered = lastStudents.filter(s => `${s.first_name} ${s.last_name}`.toLowerCase().includes(q) || (s.domain||'').toLowerCase().includes(q) || (s.skills||'').toLowerCase().includes(q));
+        render(filtered);
+    });
+    load();
+    loadWorkspaces();
+    </script>
+</body>
+</html>
+
+

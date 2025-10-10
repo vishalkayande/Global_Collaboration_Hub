@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Requests - Global Collaboration Hub</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand"><i class="fas fa-globe"></i><span>Global Collaboration Hub</span></div>
+        <button class="btn btn-outline" onclick="go('dashboard.html')">Back</button>
+    </nav>
+    <main class="main-content">
+        <div class="workspace-content">
+            <h2>Requests</h2>
+            <div id="reqList"></div>
+        </div>
+    </main>
+    <script src="common.js"></script>
+    <script>
+    const token = requireAuth('login.html');
+    async function load() {
+        const res = await fetch(`${API_BASE_URL}/requests`, { headers:{ 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) return;
+        const arr = await res.json();
+        const list = document.getElementById('reqList'); list.innerHTML='';
+        arr.forEach(r => {
+            const div = document.createElement('div'); div.className='task-item';
+            div.innerHTML = `<div class='task-header'><div class='task-title'>Request #${r.id}</div><div>${r.status}</div></div><div class='task-meta'>Workspace: ${r.workspace_id||'-'} • Project: ${r.project_id||'-'}</div>`;
+            if (r.status === 'pending') {
+                const actions = document.createElement('div'); actions.className='task-actions';
+                const a = document.createElement('button'); a.className='btn-primary'; a.textContent='Accept'; a.onclick=()=>respond(r.id,'accept');
+                const rej = document.createElement('button'); rej.className='btn-outline'; rej.textContent='Reject'; rej.onclick=()=>respond(r.id,'reject');
+                actions.appendChild(a); actions.appendChild(rej); div.appendChild(actions);
+            }
+            list.appendChild(div);
+        });
+    }
+    async function respond(id, action) {
+        const res = await fetch(`${API_BASE_URL}/requests/${id}/respond`, { method:'POST', headers:{ 'Content-Type':'application/json','Authorization': `Bearer ${token}` }, body: JSON.stringify({ action }) });
+        const d = await res.json(); if (res.ok) { notify('Updated','success'); load(); } else { notify(d.error||'Failed','error'); }
+    }
+    load();
+    </script>
+</body>
+</html>
+
+
+

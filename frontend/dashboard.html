@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Global Collaboration Hub</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand"><i class="fas fa-globe"></i><span>Global Collaboration Hub</span></div>
+        <div class="user-menu" id="userMenu" style="display:none;"></div>
+        <button class="btn btn-outline" id="logoutBtn">Logout</button>
+    </nav>
+    <main class="main-content">
+        <div class="dashboard" id="dashboard">
+            <div class="sidebar">
+                <div class="sidebar-header">
+                    <h3>Workspaces</h3>
+                    <button class="btn btn-primary btn-sm" id="workspaceActionBtn">
+                        <i class="fas fa-plus"></i> <span id="workspaceActionText">New Workspace</span>
+                    </button>
+                </div>
+                <div class="workspace-list" id="workspaceList"></div>
+            </div>
+            <div class="main-panel">
+                <div class="workspace-content" id="workspaceContent">
+                    <div class="welcome-message">
+                        <i class="fas fa-globe"></i>
+                        <h2>Welcome</h2>
+                        <p>Select a workspace to start collaborating</p>
+                        <div id="quickLinks" style="margin-top:16px; display:flex; gap:8px; flex-wrap:wrap;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    <div class="modal" id="createWorkspaceModal">
+        <div class="modal-content">
+            <div class="modal-header"><h2>Create Workspace</h2><button class="close-btn" id="closeCreateWorkspace">&times;</button></div>
+            <form id="createWorkspaceForm">
+                <div class="form-group"><label for="workspaceNameInput">Workspace Name</label><input type="text" id="workspaceNameInput" required></div>
+                <div class="form-group"><label for="workspaceDescription">Description</label><textarea id="workspaceDescription" rows="3"></textarea></div>
+                <button type="submit" class="btn btn-primary btn-full">Create Workspace</button>
+            </form>
+        </div>
+    </div>
+    <script src="common.js"></script>
+    <script>
+    const token = requireAuth('login.html');
+    const currentUser = getCurrentUser();
+    document.getElementById('userMenu').style.display = 'flex';
+    document.getElementById('userMenu').textContent = `${currentUser.first_name} ${currentUser.last_name} (${currentUser.role})`;
+    document.getElementById('logoutBtn').addEventListener('click', () => { clearAuth(); go('login.html'); });
+
+    async function loadWorkspaces() {
+        const res = await fetch(`${API_BASE_URL}/workspaces`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) return;
+        const workspaces = await res.json();
+        const list = document.getElementById('workspaceList');
+        list.innerHTML = '';
+        workspaces.forEach(w => {
+            const el = document.createElement('div');
+            el.className = 'workspace-item';
+            el.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                <div>
+                    <div style="font-weight:600;">${w.name}</div>
+                    <div style="font-size:12px; color:#666;">ID: ${w.id}</div>
+                </div>
+                <div class="badge">${w.role}</div>
+            </div>`;
+            el.addEventListener('click', () => go(`workspace.html?id=${w.id}`));
+            list.appendChild(el);
+        });
+    }
+
+    // Update workspace action based on role
+    const workspaceActionBtn = document.getElementById('workspaceActionBtn');
+    const workspaceActionText = document.getElementById('workspaceActionText');
+    
+    if (currentUser.role === 'student') {
+        workspaceActionText.textContent = 'Join Workspace';
+        workspaceActionBtn.innerHTML = '<i class="fas fa-user-plus"></i> <span>Join Workspace</span>';
+        workspaceActionBtn.addEventListener('click', () => go('workspace-invitations.html'));
+    } else {
+        workspaceActionBtn.addEventListener('click', () => {
+            document.getElementById('createWorkspaceModal').style.display = 'flex';
+            document.getElementById('createWorkspaceModal').classList.add('show');
+        });
+    }
+    document.getElementById('closeCreateWorkspace').addEventListener('click', () => {
+        document.getElementById('createWorkspaceModal').classList.remove('show');
+        document.getElementById('createWorkspaceModal').style.display = 'none';
+    });
+    document.getElementById('createWorkspaceForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const payload = { name: document.getElementById('workspaceNameInput').value, description: document.getElementById('workspaceDescription').value };
+        const res = await fetch(`${API_BASE_URL}/workspaces`, { method:'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(payload) });
+        const data = await res.json();
+        if (res.ok) {
+            notify(`Workspace created (ID: ${data.workspace.id})`,'success');
+            document.getElementById('createWorkspaceForm').reset();
+            document.getElementById('closeCreateWorkspace').click();
+            loadWorkspaces();
+        } else { notify(data.error || 'Failed','error'); }
+    });
+
+    loadWorkspaces();
+    // Role-based quick links
+    const links = [];
+    links.push({ label: 'My Profile', href: 'profile.html' });
+    if (currentUser.role === 'external' || currentUser.role === 'admin') {
+        links.push({ label: 'Browse Students', href: 'students.html' });
+        links.push({ label: 'Projects & Reviews', href: 'projects.html' });
+    }
+    if (currentUser.role === 'student') {
+        links.push({ label: 'Workspace Invitations', href: 'workspace-invitations.html' });
+        links.push({ label: 'Requests', href: 'requests.html' });
+        links.push({ label: 'Projects', href: 'projects.html' });
+    }
+    const ql = document.getElementById('quickLinks');
+    ql.innerHTML = '';
+    links.forEach(l => { const a = document.createElement('a'); a.className='btn btn-outline'; a.href=l.href; a.textContent=l.label; ql.appendChild(a); });
+    </script>
+</body>
+</html>
+
+

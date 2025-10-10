@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workspace - Global Collaboration Hub</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand"><i class="fas fa-globe"></i><span>Global Collaboration Hub</span></div>
+        <div class="user-menu" id="userMenu"></div>
+        <button class="btn btn-outline" id="backBtn">Back</button>
+        <button class="btn btn-outline" id="logoutBtn">Logout</button>
+    </nav>
+
+    <main class="main-content">
+        <div class="workspace-view" id="workspaceView">
+            <div class="workspace-tabs">
+                <button class="tab-btn active" data-tab="chat"><i class="fas fa-comments"></i> Chat</button>
+                <button class="tab-btn" data-tab="files"><i class="fas fa-folder"></i> Files</button>
+                <button class="tab-btn" data-tab="tasks"><i class="fas fa-tasks"></i> Tasks</button>
+            </div>
+            <div class="tab-content">
+                <div class="tab-pane active" id="chatTab">
+                    <div class="chat-container">
+                        <div class="chat-messages" id="chatMessages"></div>
+                        <div class="chat-input">
+                            <input type="text" id="messageInput" placeholder="Type your message...">
+                            <button id="sendMessageBtn"><i class="fas fa-paper-plane"></i></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="tab-pane" id="filesTab">
+                    <div class="files-container">
+                        <div class="files-header">
+                            <h3>Files</h3>
+                            <button class="btn btn-primary" id="uploadFileBtn"><i class="fas fa-upload"></i> Upload</button>
+                        </div>
+                        <div class="files-list" id="filesList"></div>
+                    </div>
+                </div>
+                <div class="tab-pane" id="tasksTab">
+                    <div class="tasks-container">
+                        <div class="tasks-header">
+                            <h3>Tasks</h3>
+                            <button class="btn btn-primary" id="createTaskBtn"><i class="fas fa-plus"></i> New Task</button>
+                        </div>
+                        <div class="tasks-list" id="tasksList"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="modal" id="uploadFileModal">
+        <div class="modal-content">
+            <div class="modal-header"><h2>Upload File</h2><button class="close-btn" id="closeUploadFile">&times;</button></div>
+            <form id="uploadFileForm" enctype="multipart/form-data">
+                <div class="form-group"><label for="fileInput">Select File</label><input type="file" id="fileInput" required></div>
+                <div class="form-group"><label for="fileDescription">Description</label><textarea id="fileDescription" rows="3"></textarea></div>
+                <button type="submit" class="btn btn-primary btn-full">Upload</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal" id="createTaskModal">
+        <div class="modal-content">
+            <div class="modal-header"><h2>Create Task</h2><button class="close-btn" id="closeCreateTask">&times;</button></div>
+            <form id="createTaskForm">
+                <div class="form-group"><label for="taskTitle">Title</label><input type="text" id="taskTitle" required></div>
+                <div class="form-group"><label for="taskDescription">Description</label><textarea id="taskDescription" rows="3"></textarea></div>
+                <div class="form-group"><label for="taskPriority">Priority</label><select id="taskPriority"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option><option value="urgent">Urgent</option></select></div>
+                <div class="form-group"><label for="taskDueDate">Due Date</label><input type="datetime-local" id="taskDueDate"></div>
+                <button type="submit" class="btn btn-primary btn-full">Create</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="common.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <script>
+    // Auth and params
+    const token = requireAuth('login.html');
+    const currentUser = getCurrentUser();
+    const params = new URLSearchParams(window.location.search);
+    const workspaceId = Number(params.get('id'));
+    if (!workspaceId) { notify('Workspace not specified','error'); go('dashboard.html'); }
+
+    // Header
+    document.getElementById('userMenu').textContent = `${currentUser.first_name} ${currentUser.last_name} (${currentUser.role})`;
+    document.getElementById('logoutBtn').addEventListener('click', () => { clearAuth(); go('login.html'); });
+    document.getElementById('backBtn').addEventListener('click', () => go('dashboard.html'));
+
+    // Tabs
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(`${btn.dataset.tab}Tab`).classList.add('active');
+    }));
+
+    // Socket only here
+    const socket = io('http://localhost:5000');
+    socket.on('connect', () => {
+        socket.emit('join_workspace', { workspace_id: workspaceId, user_id: currentUser.id });
+    });
+    socket.on('new_message', (data) => { addMessageToChat(data); });
+    socket.on('error', (data) => notify(data.msg || 'Socket error','error'));
+
+    // Chat
+    async function loadMessages() {
+        const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/messages`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) return;
+        const messages = await res.json();
+        const list = document.getElementById('chatMessages');
+        list.innerHTML = '';
+        messages.forEach(m => addMessageToChat(m));
+    }
+    function addMessageToChat(message) {
+        const list = document.getElementById('chatMessages');
+        const div = document.createElement('div');
+        div.className = 'message';
+        const initials = `${message.user.first_name[0]}${message.user.last_name[0]}`;
+        const time = new Date(message.created_at).toLocaleTimeString();
+        div.innerHTML = `<div class="message-avatar">${initials}</div><div class="message-content"><div class="message-header"><span class="message-author">${message.user.first_name} ${message.user.last_name}</span><span class="message-time">${time}</span></div><div class="message-text">${message.content}</div></div>`;
+        list.appendChild(div);
+        list.scrollTop = list.scrollHeight;
+    }
+    document.getElementById('sendMessageBtn').addEventListener('click', () => {
+        const content = document.getElementById('messageInput').value.trim();
+        if (!content) return;
+        socket.emit('send_message', { workspace_id: workspaceId, user_id: currentUser.id, content });
+        document.getElementById('messageInput').value = '';
+    });
+
+    // Files
+    async function loadFiles() {
+        const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/files`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) return; const files = await res.json();
+        const list = document.getElementById('filesList'); list.innerHTML = '';
+        if (!files.length) { list.innerHTML = '<div class="empty-state"><h3>No files yet</h3></div>'; return; }
+        files.forEach(f => {
+            const el = document.createElement('div');
+            el.className = 'file-item';
+            const uploader = f.uploaded_by ? `${f.uploaded_by.first_name} ${f.uploaded_by.last_name}` : 'Unknown';
+            el.innerHTML = `<div class="file-info">
+                <div class="file-name">${f.original_filename}</div>
+                <div class="file-meta">${(f.file_size/1024).toFixed(1)} KB • ${new Date(f.created_at).toLocaleDateString()} • by ${uploader}</div>
+            </div>
+            <div class="file-actions"><button onclick="downloadFile(${f.id})"><i class='fas fa-download'></i></button></div>`;
+            list.appendChild(el);
+        });
+    }
+    async function downloadFile(id) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/files/${id}/download`, { headers: { 'Authorization': `Bearer ${token}` } });
+            if (!res.ok) { notify('Download failed','error'); return; }
+            const blob = await res.blob(); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'download'; document.body.appendChild(a); a.click(); URL.revokeObjectURL(url); a.remove();
+        } catch (_) { notify('Download failed','error'); }
+    }
+    document.getElementById('uploadFileBtn').addEventListener('click', () => { const m = document.getElementById('uploadFileModal'); m.style.display='flex'; m.classList.add('show'); });
+    document.getElementById('closeUploadFile').addEventListener('click', () => { const m = document.getElementById('uploadFileModal'); m.classList.remove('show'); m.style.display='none'; });
+    document.getElementById('uploadFileForm').addEventListener('submit', async (e) => { e.preventDefault(); const fd = new FormData(); fd.append('file', document.getElementById('fileInput').files[0]); fd.append('description', document.getElementById('fileDescription').value); const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/files`, { method:'POST', headers:{ 'Authorization': `Bearer ${token}` }, body: fd }); if (res.ok) { notify('Uploaded','success'); document.getElementById('closeUploadFile').click(); loadFiles(); } else { notify('Upload failed','error'); } });
+
+    // Tasks
+    async function loadTasks() {
+        const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/tasks`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) return; const tasks = await res.json();
+        const list = document.getElementById('tasksList'); list.innerHTML = '';
+        if (!tasks.length) { list.innerHTML = '<div class="empty-state"><h3>No tasks yet</h3></div>'; return; }
+        tasks.forEach(t => { const el = document.createElement('div'); el.className='task-item'; const due = t.due_date ? new Date(t.due_date).toLocaleDateString() : 'No due'; el.innerHTML = `<div class='task-header'><div class='task-title'>${t.title}</div><div class='task-priority priority-${t.priority}'>${t.priority}</div></div><div class='task-meta'>Due: ${due}</div><div class='task-actions'><button onclick="updateTaskStatus(${t.id}, 'completed')"><i class='fas fa-check'></i></button></div>`; list.appendChild(el); });
+    }
+    async function updateTaskStatus(id, status) { const res = await fetch(`${API_BASE_URL}/tasks/${id}`, { method:'PUT', headers:{ 'Content-Type':'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ status }) }); if (res.ok) { notify('Task updated','success'); loadTasks(); } else { notify('Failed to update','error'); } }
+    document.getElementById('createTaskBtn').addEventListener('click', () => { const m = document.getElementById('createTaskModal'); m.style.display='flex'; m.classList.add('show'); });
+    document.getElementById('closeCreateTask').addEventListener('click', () => { const m = document.getElementById('createTaskModal'); m.classList.remove('show'); m.style.display='none'; });
+    document.getElementById('createTaskForm').addEventListener('submit', async (e) => { e.preventDefault(); const payload = { title: document.getElementById('taskTitle').value, description: document.getElementById('taskDescription').value, priority: document.getElementById('taskPriority').value, due_date: document.getElementById('taskDueDate').value }; const res = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/tasks`, { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(payload) }); if (res.ok) { notify('Task created','success'); document.getElementById('closeCreateTask').click(); loadTasks(); } else { notify('Failed','error'); } });
+
+    // Initial loads
+    loadMessages();
+    loadFiles();
+    loadTasks();
+    </script>
+</body>
+</html>
+
+
+

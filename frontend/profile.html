@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile - Global Collaboration Hub</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand"><i class="fas fa-globe"></i><span>Global Collaboration Hub</span></div>
+        <button class="btn btn-outline" onclick="go('dashboard.html')">Back</button>
+    </nav>
+    <main class="main-content">
+        <div class="modal show" style="display:flex;">
+            <div class="modal-content" style="max-width:720px;">
+                <div class="modal-header"><h2>My Profile</h2></div>
+                <form id="profileForm">
+                    <div class="form-group"><label>First Name</label><input id="first_name" required></div>
+                    <div class="form-group"><label>Last Name</label><input id="last_name" required></div>
+                    <div class="form-group"><label>Domain</label><input id="domain" placeholder="e.g., Web Development"></div>
+                    <div class="form-group"><label>Skills</label><input id="skills" placeholder="Comma-separated skills"></div>
+                    <div class="form-group"><label>Experience (years)</label><input id="experience_years" type="number" min="0"></div>
+                    <div class="form-group"><label>Portfolio Link</label><input id="portfolio_link"></div>
+                    <div class="form-group"><label>Resume Link</label><input id="resume_link"></div>
+                    <div class="form-group"><label>Bio</label><textarea id="bio" rows="3"></textarea></div>
+                    <button type="submit" class="btn btn-primary btn-full">Save</button>
+                </form>
+            </div>
+        </div>
+    </main>
+    <script src="common.js"></script>
+    <script>
+    const token = requireAuth('login.html');
+    const me = getCurrentUser();
+    async function load() {
+        const res = await fetch(`${API_BASE_URL}/profile`, { headers:{ 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) return;
+        const u = await res.json();
+        ['first_name','last_name','domain','skills','experience_years','portfolio_link','resume_link','bio'].forEach(k => { const el = document.getElementById(k); if (el) el.value = u[k] ?? ''; });
+    }
+    document.getElementById('profileForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const payload = {
+            first_name: document.getElementById('first_name').value,
+            last_name: document.getElementById('last_name').value,
+            domain: document.getElementById('domain').value,
+            skills: document.getElementById('skills').value,
+            experience_years: document.getElementById('experience_years').value,
+            portfolio_link: document.getElementById('portfolio_link').value,
+            resume_link: document.getElementById('resume_link').value,
+            bio: document.getElementById('bio').value
+        };
+        const res = await fetch(`${API_BASE_URL}/profile`, { method:'PUT', headers:{ 'Content-Type':'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(payload) });
+        if (res.ok) { notify('Profile saved','success'); } else { const d = await res.json(); notify(d.error || 'Save failed','error'); }
+    });
+    load();
+    </script>
+</body>
+</html>
+
+
+

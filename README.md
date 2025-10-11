@@ -373,7 +373,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 - 📖 **Documentation**: Check the `docs/` folder
 - 🐛 **Issues**: Create an issue in the repository
 - 💬 **Discussions**: Use GitHub Discussions
-- 📧 **Contact**: [Your Email]
+- 📧 **Contact**: [vishalskayande121@gmail.com]
 
 ### **Resources**
 - [Installation Guide](docs/INSTALLATION.md)
@@ -395,3 +395,4 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 </div>
 
 #
+

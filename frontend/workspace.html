@@ -11,11 +11,11 @@
     <nav class="navbar">
         <div class="nav-brand"><i class="fas fa-globe"></i><span>Global Collaboration Hub</span></div>
         <div class="user-menu" id="userMenu"></div>
-        <button class="btn btn-outline" id="backBtn">Back</button>
-        <button class="btn btn-outline" id="logoutBtn">Logout</button>
+        <button class="btn btn-outline btn-header" id="backBtn">Back</button>
+        <button class="btn btn-outline btn-header" id="logoutBtn">Logout</button>
     </nav>
 
-    <main class="main-content">
+    <main class="page">
         <div class="workspace-view" id="workspaceView">
             <div class="workspace-tabs">
                 <button class="tab-btn active" data-tab="chat"><i class="fas fa-comments"></i> Chat</button>
@@ -25,7 +25,7 @@
             <div class="tab-content">
                 <div class="tab-pane active" id="chatTab">
                     <div class="chat-container">
-                        <div class="chat-messages" id="chatMessages"></div>
+                        <div class="chat-messages watermark" id="chatMessages"></div>
                         <div class="chat-input">
                             <input type="text" id="messageInput" placeholder="Type your message...">
                             <button id="sendMessageBtn"><i class="fas fa-paper-plane"></i></button>
@@ -38,7 +38,7 @@
                             <h3>Files</h3>
                             <button class="btn btn-primary" id="uploadFileBtn"><i class="fas fa-upload"></i> Upload</button>
                         </div>
-                        <div class="files-list" id="filesList"></div>
+                        <div class="files-list watermark" id="filesList"></div>
                     </div>
                 </div>
                 <div class="tab-pane" id="tasksTab">
@@ -47,7 +47,7 @@
                             <h3>Tasks</h3>
                             <button class="btn btn-primary" id="createTaskBtn"><i class="fas fa-plus"></i> New Task</button>
                         </div>
-                        <div class="tasks-list" id="tasksList"></div>
+                        <div class="tasks-list watermark" id="tasksList"></div>
                     </div>
                 </div>
             </div>

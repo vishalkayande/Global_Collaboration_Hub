@@ -12,24 +12,26 @@
         <div class="nav-brand"><i class="fas fa-globe"></i><span>Global Collaboration Hub</span></div>
         <button class="btn btn-outline" onclick="go('dashboard.html')">Back</button>
     </nav>
-    <main class="main-content">
-        <div class="workspace-content">
+    <main class="page">
+        <div class="container">
+        <div class="page-header">
             <h2>Browse Students</h2>
-            <div style="margin: 8px 0; display:flex; gap:8px; align-items:center;">
-                <input id="filterText" placeholder="Search by name/domain/skills" style="flex:1;">
+            <div class="toolbar">
+                <input id="filterText" class="input" placeholder="Search by name, domain or skills" style="min-width:320px;">
                 <button class="btn btn-outline" id="refreshBtn">Refresh</button>
             </div>
-            <div id="bulkActions" style="display:none; margin:8px 0; padding:8px; background:#f5f5f5; border-radius:4px; gap:8px; align-items:center;"></div>
-            <div id="studentsList"></div>
-            <div class="modal" id="profileModal">
-                <div class="modal-content" style="max-width:720px;">
-                    <div class="modal-header"><h2>Student Profile</h2><button class="close-btn" id="closeProfile">&times;</button></div>
-                    <div id="profileBody"></div>
-                    <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:12px;">
-                        <button class="btn btn-outline" id="inviteBtn">Invite to Workspace</button>
-                    </div>
+        </div>
+        <div id="bulkActions" class="card-compact" style="display:none; padding:8px; gap:8px; align-items:center;"></div>
+        <div id="studentsList"></div>
+        <div class="modal" id="profileModal">
+            <div class="modal-content" style="max-width:720px;">
+                <div class="modal-header"><h2>Student Profile</h2><button class="close-btn" id="closeProfile">&times;</button></div>
+                <div id="profileBody"></div>
+                <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:12px;">
+                    <button class="btn btn-outline" id="inviteBtn">Invite to Workspace</button>
                 </div>
             </div>
+        </div>
         </div>
     </main>
     <script src="common.js"></script>

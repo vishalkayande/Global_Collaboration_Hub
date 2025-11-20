@@ -30,7 +30,7 @@ def main():
     
     # .env optional; continue if missing
     
-    print("✅ Starting server on http://localhost:5000")
+    print("✅ Starting server on http://127.0.0.1:5500/frontend/login.html")
     print("📝 Press Ctrl+C to stop the server")
     print("-" * 50)
     

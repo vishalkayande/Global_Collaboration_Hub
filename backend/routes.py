@@ -48,6 +48,27 @@ def get_files(workspace_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@api.route('/api/my-sent-invitations', methods=['GET'])
+@jwt_required()
+def get_my_sent_invitations():
+    try:
+        user_id = int(get_jwt_identity())
+        records = Membership.query.filter_by(invited_by=user_id).all()
+        result = []
+        for m in records:
+            w = Workspace.query.get(m.workspace_id)
+            s = User.query.get(m.user_id)
+            result.append({
+                'id': m.id,
+                'workspace': {'id': w.id, 'name': w.name},
+                'student': {'id': s.id, 'name': f"{s.first_name} {s.last_name}", 'email': s.email},
+                'status': m.status,
+                'invited_at': getattr(m, 'invited_at', datetime.utcnow()).isoformat(),
+                'joined_at': getattr(m, 'joined_at', None).isoformat() if getattr(m, 'joined_at', None) else None
+            })
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 @api.route('/api/workspaces/<int:workspace_id>/files', methods=['POST'])
 @jwt_required()
 def upload_file(workspace_id):

@@ -13,28 +13,37 @@
         <div class="user-menu" id="userMenu" style="display:none;"></div>
         <button class="btn btn-outline" id="logoutBtn">Logout</button>
     </nav>
-    <main class="main-content">
-        <div class="dashboard" id="dashboard">
-            <div class="sidebar">
-                <div class="sidebar-header">
-                    <h3>Workspaces</h3>
-                    <button class="btn btn-primary btn-sm" id="workspaceActionBtn">
-                        <i class="fas fa-plus"></i> <span id="workspaceActionText">New Workspace</span>
-                    </button>
+    <main class="app-shell">
+        <aside class="sidebar-nav">
+            <a href="dashboard.html"><i class="fas fa-home"></i> Dashboard</a>
+            <a href="profile.html"><i class="fas fa-user"></i> Profile</a>
+            <a href="students.html"><i class="fas fa-users"></i> Students</a>
+            <a href="workspace-invitations.html"><i class="fas fa-envelope-open-text"></i> Invitations</a>
+            <a href="requests.html"><i class="fas fa-inbox"></i> Requests</a>
+        </aside>
+        <section class="content-area">
+            <div class="hero card ribbon" id="heroBanner">
+                <div>
+                    <h1>Collaborate Across Workspaces</h1>
+                    <p>Perfect Platform For OpenSource Development Work.</p>
                 </div>
-                <div class="workspace-list" id="workspaceList"></div>
-            </div>
-            <div class="main-panel">
-                <div class="workspace-content" id="workspaceContent">
-                    <div class="welcome-message">
-                        <i class="fas fa-globe"></i>
-                        <h2>Welcome</h2>
-                        <p>Select a workspace to start collaborating</p>
-                        <div id="quickLinks" style="margin-top:16px; display:flex; gap:8px; flex-wrap:wrap;"></div>
-                    </div>
+                <div class="hero-actions">
+                    <button class="btn btn-primary" id="heroActionBtn"><i class="fas fa-rocket"></i> <span id="heroActionText">Get Started</span></button>
                 </div>
             </div>
-        </div>
+            <div class="section-divider"></div>
+            <div class="card ribbon" id="welcomeCard">
+                <div class="welcome-message">
+                    <i class="fas fa-globe"></i>
+                    <h2>Welcome</h2>
+                    <p>Select a workspace to start collaborating</p>
+                </div>
+            </div>
+            <div class="page-header" style="margin-top:1rem;">
+                <h2>Workspaces</h2>
+            </div>
+            <div class="workspace-list" id="workspaceList"></div>
+        </section>
     </main>
     <div class="modal" id="createWorkspaceModal">
         <div class="modal-content">
@@ -51,8 +60,9 @@
     const token = requireAuth('login.html');
     const currentUser = getCurrentUser();
     document.getElementById('userMenu').style.display = 'flex';
-    document.getElementById('userMenu').textContent = `${currentUser.first_name} ${currentUser.last_name} (${currentUser.role})`;
+    document.getElementById('userMenu').innerHTML = `<span>${currentUser.first_name} ${currentUser.last_name} (${currentUser.role})</span>`;
     document.getElementById('logoutBtn').addEventListener('click', () => { clearAuth(); go('login.html'); });
+    document.getElementById('logoutBtn').classList.add('btn-header');
 
     async function loadWorkspaces() {
         const res = await fetch(`${API_BASE_URL}/workspaces`, { headers: { 'Authorization': `Bearer ${token}` } });
@@ -75,16 +85,15 @@
         });
     }
 
-    // Update workspace action based on role
-    const workspaceActionBtn = document.getElementById('workspaceActionBtn');
-    const workspaceActionText = document.getElementById('workspaceActionText');
-    
+    // Hero CTA
+    const heroActionBtn = document.getElementById('heroActionBtn');
+    const heroActionText = document.getElementById('heroActionText');
     if (currentUser.role === 'student') {
-        workspaceActionText.textContent = 'Join Workspace';
-        workspaceActionBtn.innerHTML = '<i class="fas fa-user-plus"></i> <span>Join Workspace</span>';
-        workspaceActionBtn.addEventListener('click', () => go('workspace-invitations.html'));
+        heroActionText.textContent = 'Join Workspace';
+        heroActionBtn.innerHTML = '<i class="fas fa-user-plus"></i> <span>Join Workspace</span>';
+        heroActionBtn.addEventListener('click', () => go('workspace-invitations.html'));
     } else {
-        workspaceActionBtn.addEventListener('click', () => {
+        heroActionBtn.addEventListener('click', () => {
             document.getElementById('createWorkspaceModal').style.display = 'flex';
             document.getElementById('createWorkspaceModal').classList.add('show');
         });
@@ -107,21 +116,9 @@
     });
 
     loadWorkspaces();
-    // Role-based quick links
-    const links = [];
-    links.push({ label: 'My Profile', href: 'profile.html' });
-    if (currentUser.role === 'external' || currentUser.role === 'admin') {
-        links.push({ label: 'Browse Students', href: 'students.html' });
-        links.push({ label: 'Projects & Reviews', href: 'projects.html' });
-    }
-    if (currentUser.role === 'student') {
-        links.push({ label: 'Workspace Invitations', href: 'workspace-invitations.html' });
-        links.push({ label: 'Requests', href: 'requests.html' });
-        links.push({ label: 'Projects', href: 'projects.html' });
-    }
-    const ql = document.getElementById('quickLinks');
-    ql.innerHTML = '';
-    links.forEach(l => { const a = document.createElement('a'); a.className='btn btn-outline'; a.href=l.href; a.textContent=l.label; ql.appendChild(a); });
+    // Hide Requests for non-students
+    const reqLink = document.querySelector('a[href="requests.html"]');
+    if (reqLink && currentUser.role !== 'student') { reqLink.style.display = 'none'; }
     </script>
 </body>
 </html>

@@ -10,53 +10,69 @@
 <body>
     <nav class="navbar">
         <div class="nav-brand"><i class="fas fa-globe"></i><span>Global Collaboration Hub</span></div>
-        <button class="btn btn-outline" onclick="go('dashboard.html')">Back to Dashboard</button>
+        <button class="btn btn-outline btn-header" onclick="go('dashboard.html')">Back to Dashboard</button>
     </nav>
-    <main class="main-content">
-        <div class="workspace-content">
+    <main class="page">
+        <div class="container">
+        <div class="page-header">
             <h2>Workspace Invitations</h2>
-            <div id="invitationsList"></div>
+        </div>
+        <div id="invitationsList"></div>
         </div>
     </main>
     <script src="common.js"></script>
     <script>
     const token = requireAuth('login.html');
     const me = getCurrentUser();
-    if (me.role !== 'student') { go('dashboard.html'); }
     
     async function loadInvitations() {
         try {
-            const res = await fetch(`${API_BASE_URL}/my-invitations`, { headers:{ 'Authorization': `Bearer ${token}` } });
-            if (!res.ok) return;
-            
-            const invitations = await res.json();
-            const list = document.getElementById('invitationsList');
-            list.innerHTML = '';
-            
-            if (invitations.length === 0) {
-                list.innerHTML = '<div class="empty-state"><h3>No pending invitations</h3><p>You have no pending workspace invitations.</p></div>';
-                return;
+            const list = document.getElementById('invitationsList'); list.innerHTML='';
+            if (me.role === 'student') {
+                const res = await fetch(`${API_BASE_URL}/my-invitations`, { headers:{ 'Authorization': `Bearer ${token}` } });
+                if (!res.ok) return;
+                const invitations = await res.json();
+                if (invitations.length === 0) {
+                    list.innerHTML = '<div class="empty-state"><h3>No pending invitations</h3></div>';
+                    return;
+                }
+                invitations.forEach(invitation => {
+                    const div = document.createElement('div');
+                    div.className = 'task-item ribbon';
+                    div.innerHTML = `
+                        <div class="task-header">
+                            <div class="task-title">${invitation.workspace.name}</div>
+                            <div class="task-status">Invited</div>
+                        </div>
+                        <div class="task-meta">
+                            ${invitation.workspace.description || 'No description'}<br>
+                            Invited by: ${invitation.invited_by.name}
+                        </div>
+                        <div class="task-actions">
+                            <button class="btn btn-primary" onclick="respondToInvitation(${invitation.workspace.id}, ${invitation.id}, 'accept')">Accept</button>
+                            <button class="btn btn-outline" onclick="respondToInvitation(${invitation.workspace.id}, ${invitation.id}, 'decline')">Decline</button>
+                        </div>
+                    `;
+                    list.appendChild(div);
+                });
+            } else {
+                const res = await fetch(`${API_BASE_URL}/my-sent-invitations`, { headers:{ 'Authorization': `Bearer ${token}` } });
+                if (!res.ok) return;
+                const sent = await res.json();
+                if (!sent.length) { list.innerHTML = '<div class="empty-state"><h3>No sent invitations</h3></div>'; return; }
+                sent.forEach(inv => {
+                    const div = document.createElement('div'); div.className='task-item ribbon';
+                    const badge = inv.status.charAt(0).toUpperCase()+inv.status.slice(1);
+                    div.innerHTML = `
+                        <div class="task-header">
+                            <div class="task-title">${inv.workspace.name}</div>
+                            <div class="badge">${badge}</div>
+                        </div>
+                        <div class="task-meta">${inv.student.name} • ${inv.student.email}<br>Sent on ${new Date(inv.invited_at).toLocaleString()}</div>
+                    `;
+                    list.appendChild(div);
+                });
             }
-            
-            invitations.forEach(invitation => {
-                const div = document.createElement('div');
-                div.className = 'task-item';
-                div.innerHTML = `
-                    <div class="task-header">
-                        <div class="task-title">${invitation.workspace.name}</div>
-                        <div class="task-status">Invited</div>
-                    </div>
-                    <div class="task-meta">
-                        ${invitation.workspace.description || 'No description'}<br>
-                        Invited by: ${invitation.invited_by.name}
-                    </div>
-                    <div class="task-actions">
-                        <button class="btn btn-primary" onclick="respondToInvitation(${invitation.workspace.id}, ${invitation.id}, 'accept')">Accept</button>
-                        <button class="btn btn-outline" onclick="respondToInvitation(${invitation.workspace.id}, ${invitation.id}, 'decline')">Decline</button>
-                    </div>
-                `;
-                list.appendChild(div);
-            });
         } catch (error) {
             notify('Failed to load invitations', 'error');
         }

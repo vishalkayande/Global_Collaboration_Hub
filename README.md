@@ -24,25 +24,21 @@ A **production-ready** web-based platform for seamless communication and collabo
 - **Workspace Settings** and configuration management
 
 ### 💬 **Real-time Communication**
-- **Live Chat System** using WebSocket (Socket.IO)
-- **Instant Message Delivery** with sub-500ms latency
-- **Message History** with persistent storage
-- **User Presence** and typing indicators
-- **Room-based Messaging** for workspace isolation
+- **Live Chat** powered by Socket.IO
+- **Message History** persisted in the database
+- **Workspace Rooms** for isolated messaging
 
 ### 📁 **File Management**
-- **Secure File Upload** with type and size validation
-- **File Type Support** (Images, Documents, PDFs, etc.)
-- **File Size Limits** (up to 16MB per file)
+- **Secure File Upload** with global 16MB limit
+- **Common File Types** (images, documents, spreadsheets, presentations)
 - **File Metadata** with descriptions and timestamps
-- **Download Management** with secure access control
+- **Secure Downloads** gated by workspace membership
 
 ### ✅ **Task Management**
-- **Task Creation & Assignment** with due dates
+- **Create & Assign Tasks** with optional due dates
 - **Priority Levels** (Low, Medium, High, Urgent)
-- **Status Tracking** (Pending, In Progress, Completed, Cancelled)
-- **Task Comments** and descriptions
-- **Due Date Management** with notifications
+- **Status Tracking** (Pending, In Progress, Completed)
+- **Task descriptions**
 
 ### 🎨 **User Experience**
 - **Responsive Design** for all devices (Desktop, Tablet, Mobile)
@@ -54,9 +50,9 @@ A **production-ready** web-based platform for seamless communication and collabo
 ## 🏗️ Architecture
 
 ### **Three-Tier Architecture**
-- **Frontend**: HTML5, CSS3, JavaScript (ES6+) with modern UI components
-- **Backend**: Python Flask with RESTful API and WebSocket support  
-- **Database**: MySQL with optimized schema and relationships
+- **Frontend**: HTML5, CSS3, JavaScript (ES6+)
+- **Backend**: Python Flask with RESTful API and Socket.IO
+- **Database**: SQLite by default (production-ready MySQL schema included)
 
 ### **Technology Stack**
 | Component | Technology | Version | Purpose |
@@ -65,18 +61,19 @@ A **production-ready** web-based platform for seamless communication and collabo
 | **Database ORM** | SQLAlchemy | 3.0.5 | Database management |
 | **Authentication** | Flask-JWT-Extended | 4.5.3 | JWT token handling |
 | **Real-time** | Flask-SocketIO | 5.3.6 | WebSocket communication |
-| **Database** | MySQL | 8.0+ | Data persistence |
+| **Database** | SQLite (default) | 3.x | Local development |
+| **Database (alt)** | MySQL | 8.0+ | Production schema |
 | **Frontend** | Vanilla JS | ES6+ | Client-side logic |
 | **Styling** | CSS3 | Modern | Responsive design |
 | **Icons** | Font Awesome | 6.0.0 | UI icons |
 
 ### **Security Features**
-- 🔒 **JWT Token Authentication** with 24-hour expiration
-- 🔐 **Password Hashing** using bcrypt
-- 🛡️ **Input Validation** and sanitization
-- 🚫 **CORS Protection** for cross-origin requests
-- 📁 **File Upload Security** with type and size validation
-- 🔍 **SQL Injection Prevention** through ORM
+- 🔒 **JWT Authentication** with 24-hour expiry
+- 🔐 **Password Hashing** via Werkzeug (PBKDF2)
+- 🛡️ **Input Validation** on auth and profile endpoints
+- 🚫 **CORS** enabled for the API
+- 📁 **Upload Limits** enforced globally (16MB)
+- 🔍 **ORM**-based queries to mitigate injection
 
 ## 📁 Project Structure
 
@@ -186,23 +183,41 @@ FLASK_DEBUG=True
 
 ### **Core Endpoints**
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
 | `GET` | `/api/health` | Health check | ❌ |
-| `POST` | `/api/signup` | User registration | ❌ |
-| `POST` | `/api/login` | User login | ❌ |
-| `GET` | `/api/profile` | Get user profile | ✅ |
-| `PUT` | `/api/profile` | Update profile | ✅ |
-| `GET` | `/api/workspaces` | List workspaces | ✅ |
+| `POST` | `/api/signup` | Register user | ❌ |
+| `POST` | `/api/login` | Login and get JWT | ❌ |
+| `POST` | `/api/logout` | Logical logout | ✅ |
+| `POST` | `/api/forgot-password` | Start password reset | ❌ |
+| `POST` | `/api/reset-password` | Finish password reset | ❌ |
+| `GET` | `/api/profile` | Get own profile | ✅ |
+| `PUT` | `/api/profile` | Update own profile | ✅ |
+| `GET` | `/api/workspaces` | List my workspaces | ✅ |
 | `POST` | `/api/workspaces` | Create workspace | ✅ |
-| `GET` | `/api/workspaces/{id}/messages` | Get messages | ✅ |
+| `GET` | `/api/workspaces/{id}/messages` | List messages | ✅ |
 | `GET` | `/api/workspaces/{id}/files` | List files | ✅ |
 | `POST` | `/api/workspaces/{id}/files` | Upload file | ✅ |
 | `GET` | `/api/workspaces/{id}/tasks` | List tasks | ✅ |
 | `POST` | `/api/workspaces/{id}/tasks` | Create task | ✅ |
+| `PUT` | `/api/tasks/{task_id}` | Update task | ✅ |
+| `DELETE` | `/api/tasks/{task_id}` | Delete task | ✅ |
+| `GET` | `/api/students` | List students (agency/admin) | ✅ |
+| `GET` | `/api/students/{id}` | Get student profile | ✅ |
+| `POST` | `/api/workspaces/{id}/invite-students` | Invite students | ✅ |
+| `GET` | `/api/my-invitations` | My workspace invitations | ✅ |
+| `POST` | `/api/workspaces/{id}/invitations/{inv_id}/respond` | Respond to invite | ✅ |
+| `POST` | `/api/invitations/{inv_id}/respond` | Respond to invite (simple) | ✅ |
+| `POST` | `/api/requests` | Create join request | ✅ |
+| `GET` | `/api/requests` | List join requests | ✅ |
+| `POST` | `/api/requests/{id}/respond` | Respond to join request | ✅ |
+| `POST` | `/api/projects` | Create project | ✅ |
+| `GET` | `/api/projects` | List projects | ✅ |
+| `POST` | `/api/projects/{id}/submit` | Submit project work | ✅ |
+| `POST` | `/api/submissions/{id}/review` | Review submission | ✅ |
 
 ### **Real-time Features**
-- **WebSocket Connection**: `ws://localhost:5000`
+- **Socket.IO** at `http://localhost:5000`
 - **Events**: `join_workspace`, `leave_workspace`, `send_message`, `new_message`
 
 For complete API documentation, see [API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md).
@@ -395,4 +410,22 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 </div>
 
 #
+
+### 👥 **Talent Discovery & Invitations**
+- **Student Directory** with domains, skills, and experience
+- **Agency-driven Invitations** to workspaces
+- **Invitation Lifecycle** (invited → accepted/declined)
+
+### 📬 **Join Requests**
+- **Agencies → Students** join requests for projects/workspaces
+- **Student Responses** (accept/reject)
+
+### 📦 **Projects & Reviews**
+- **Project Creation** within a workspace
+- **Student Submissions** with links and notes
+- **Agency/Admin Reviews** (approved, rework, rejected)
+
+### 🔑 **Password Recovery**
+- **Forgot Password** token generation and email link output (dev)
+- **Reset Password** endpoint with token validation
 
